@@ -1,0 +1,9 @@
+/* Default light theme */
+.logo{
+  font-size:32px;
+  color:#111;
+  margin-bottom:15px;
+}
+.result{
+  box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
