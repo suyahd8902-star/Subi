@@ -1,37 +1,455 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>MySearch — Private UI</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Line & Circle Wedding Playground</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#ffffff;
+    --accent:#ff6b6b;
+    --muted:#6b7280;
+    --ui-bg: rgba(255,255,255,0.9);
+  }
+  html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial;}
+  body{background:linear-gradient(180deg,#f0f4ff 0%, #f6f7fb 100%);display:flex;gap:12px}
+  .sidebar{
+    width:320px; min-width:260px;
+    background:var(--panel); border-right:1px solid #eee;
+    padding:18px; box-shadow:0 6px 20px rgba(20,30,60,.06);
+    display:flex; flex-direction:column; gap:12px;
+  }
+  h1{margin:0 0 8px 0;font-size:18px;color:#0f1724}
+  .controls{display:flex;flex-direction:column;gap:10px}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+  .row{display:flex;gap:8px;align-items:center}
+  input[type="color"]{width:44px;height:36px;padding:0;border-radius:6px;border:1px solid #ddd;background:#fff}
+  select,input[type="range"]{width:100%}
+  button{padding:10px 12px;border-radius:8px;border:none;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+  .btn-ghost{background:transparent;color:var(--accent);border:1px solid rgba(255,107,107,.12)}
+  .small{padding:8px 10px;font-size:14px}
+  .flex-between{display:flex;justify-content:space-between;align-items:center}
+  .footer-note{font-size:12px;color:var(--muted);opacity:.9}
 
-  <link rel="stylesheet" href="theme.css"/>
-  <link rel="stylesheet" href="app.css"/>
+  /* canvas area */
+  .stage{
+    flex:1; position:relative; overflow:hidden;
+    display:flex;align-items:center;justify-content:center;padding:24px;
+  }
+  svg{width:100%;height:100%;display:block}
+
+  /* decorations */
+  .ring{fill:none;stroke:#ffd166;stroke-width:6;stroke-linecap:round}
+  .confetti{filter:drop-shadow(0 6px 10px rgba(0,0,0,.08))}
+  /* simple animation classes */
+  .walk-right{ animation: walkRight 1s ease-in-out forwards; }
+  .walk-left{ animation: walkLeft 1s ease-in-out forwards; }
+  @keyframes walkRight { to { transform: translateX(40px) } }
+  @keyframes walkLeft { to { transform: translateX(-40px) } }
+
+  /* sparkles */
+  .sparkle { animation: sparkle 900ms ease-out forwards; transform-origin:center; }
+  @keyframes sparkle { 0%{ transform: scale(.1); opacity:1 } 100%{ transform: scale(1.4); opacity:0 } }
+
+  /* kiss pulse */
+  .kiss-heart { animation: kissPop 700ms ease-out both; transform-origin:center; }
+  @keyframes kissPop { 0%{ transform: scale(.2); opacity:0 } 40%{ transform: scale(1.1); opacity:1 } 100%{ transform: scale(.95); opacity:1 } }
+
+  /* confetti fall */
+  .confetti-piece { animation: fall 1500ms cubic-bezier(.2,.9,.2,1) forwards; opacity:0 }
+  @keyframes fall { 0%{ transform: translateY(-20px) rotate(0deg); opacity:1 } 100%{ transform: translateY(220px) rotate(340deg); opacity:1 } }
+
+  /* responsive */
+  @media (max-width:880px){ .sidebar{display:none} body{padding:0} }
+</style>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">MySearch</div>
-  </header>
 
-  <main class="container">
-    <div class="search-area">
-      <div class="logo">MySearch</div>
+  <aside class="sidebar" id="sidebar">
+    <h1>Wedding Playground</h1>
 
-      <form id="searchForm" class="search-form" autocomplete="off">
-        <input id="q" type="search" placeholder="Search the web" aria-label="Search"/>
-        <button type="submit">Search</button>
-      </form>
+    <div class="controls">
+      <div>
+        <label>Left person color</label>
+        <div class="row"><input id="leftColor" type="color" value="#3b82f6"><input id="leftStroke" type="range" min="2" max="8" value="4"></div>
+      </div>
 
-      <div id="info" class="info">Using SearxNG public instance (free, no key)</div>
+      <div>
+        <label>Right person color</label>
+        <div class="row"><input id="rightColor" type="color" value="#ff6b6b"><input id="rightStroke" type="range" min="2" max="8" value="4"></div>
+      </div>
+
+      <div>
+        <label>Action</label>
+        <div class="row">
+          <select id="actionSelect">
+            <option value="kiss">Kiss</option>
+            <option value="hug">Hug</option>
+            <option value="marry">Marry</option>
+            <option value="child">Have child</option>
+            <option value="dance">Dance</option>
+            <option value="reset">Reset</option>
+          </select>
+          <button id="doAction" class="small">Do</button>
+        </div>
+      </div>
+
+      <div>
+        <label>Decoration</label>
+        <div class="row">
+          <button id="addBanner" class="btn-ghost small">Toggle Banner</button>
+          <button id="addConfetti" class="small">Confetti</button>
+        </div>
+      </div>
+
+      <div>
+        <label>Spawn options</label>
+        <div class="row">
+          <button id="spawnLeft" class="small btn-ghost">Add Left Person</button>
+          <button id="spawnRight" class="small btn-ghost">Add Right Person</button>
+        </div>
+      </div>
+
+      <div class="flex-between">
+        <div class="footer-note">Made with SVG • Lines & Circles</div>
+        <div style="font-size:12px;color:var(--muted)">Tip: change theme by editing CSS</div>
+      </div>
     </div>
+  </aside>
 
-    <section id="results" class="results" aria-live="polite"></section>
-    <nav id="pager" class="pager"></nav>
+  <main class="stage">
+    <!-- SVG scene -->
+    <svg id="scene" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <g id="person-template">
+          <!-- group holds head, body, arms, legs lines, customizable via JS -->
+          <circle class="head" cx="0" cy="-60" r="24" fill="#fff" stroke="#333" stroke-width="4" />
+          <line class="body" x1="0" y1="-36" x2="0" y2="40" stroke="#333" stroke-width="4" stroke-linecap="round" />
+          <line class="arm-l" x1="-36" y1="-8" x2="0" y2="-8" stroke="#333" stroke-width="4" stroke-linecap="round" />
+          <line class="arm-r" x1="0" y1="-8" x2="36" y2="-8" stroke="#333" stroke-width="4" stroke-linecap="round" />
+          <line class="leg-l" x1="-18" y1="40" x2="0" y2="88" stroke="#333" stroke-width="4" stroke-linecap="round" />
+          <line class="leg-r" x1="18" y1="40" x2="0" y2="88" stroke="#333" stroke-width="4" stroke-linecap="round" />
+        </g>
+
+        <symbol id="ring-symbol" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="32" fill="none" stroke="#ffd166" stroke-width="8"/>
+          <circle cx="75" cy="30" r="8" fill="#ffd166" />
+        </symbol>
+
+        <g id="heart" transform="translate(0,0)">
+          <path d="M0,-6 C0,-18 18,-18 18,-6 C18,6 0,14 -0,22 C-0,14 -18,6 -18,-6 C-18,-18 0,-18 0,-6 Z" fill="#ff6b6b"/>
+        </g>
+      </defs>
+
+      <!-- background stage -->
+      <rect x="0" y="0" width="1000" height="600" fill="transparent"></rect>
+
+      <!-- banner (hidden by default) -->
+      <g id="banner" transform="translate(500,90)" opacity="0">
+        <rect x="-300" y="-40" width="600" height="70" rx="10" fill="#fff8e6" stroke="#ffd166" stroke-width="2"/>
+        <text x="0" y="8" font-size="28" text-anchor="middle" fill="#b45309" style="font-weight:700">Congratulations!</text>
+      </g>
+
+      <!-- persons container -->
+      <g id="people" transform="translate(500,320)">
+        <!-- left person -->
+        <g id="leftPerson" class="person" transform="translate(-160,0) scale(1)">
+          <use href="#person-template" />
+        </g>
+
+        <!-- right person -->
+        <g id="rightPerson" class="person" transform="translate(160,0) scale(1)">
+          <use href="#person-template" />
+        </g>
+      </g>
+
+      <!-- rings, hearts and confetti layer -->
+      <g id="effects"></g>
+
+      <!-- children container -->
+      <g id="children" transform="translate(500,420)"></g>
+    </svg>
   </main>
 
-  <footer class="footer">Powered by SearxNG</footer>
+<script>
+/* Interactive wedding playground script */
 
-  <script src="config.js"></script>
-  <script src="script.js"></script>
-</body>
-          </html>
+// DOM references
+const scene = document.getElementById('scene');
+const leftPerson = document.getElementById('leftPerson');
+const rightPerson = document.getElementById('rightPerson');
+const peopleGroup = document.getElementById('people');
+const effects = document.getElementById('effects');
+const childrenGroup = document.getElementById('children');
+const banner = document.getElementById('banner');
+
+const leftColorInput = document.getElementById('leftColor');
+const rightColorInput = document.getElementById('rightColor');
+const leftStroke = document.getElementById('leftStroke');
+const rightStroke = document.getElementById('rightStroke');
+
+const actionSelect = document.getElementById('actionSelect');
+const doActionBtn = document.getElementById('doAction');
+const addBannerBtn = document.getElementById('addBanner');
+const addConfettiBtn = document.getElementById('addConfetti');
+const spawnLeftBtn = document.getElementById('spawnLeft');
+const spawnRightBtn = document.getElementById('spawnRight');
+
+let bannerVisible = false;
+let confettiRunning = false;
+let childCount = 0;
+
+// utility to set colors & stroke widths on a person group
+function stylePerson(personNode, color, strokeWidth) {
+  const head = personNode.querySelector('.head');
+  const lines = personNode.querySelectorAll('line');
+  head.setAttribute('fill', color);
+  head.setAttribute('stroke', shadeColor(color, -40));
+  head.setAttribute('stroke-width', Math.max(1, strokeWidth));
+  lines.forEach(l => { l.setAttribute('stroke', shadeColor(color, -20)); l.setAttribute('stroke-width', Math.max(1, strokeWidth)); });
+}
+
+// small color shading helper
+function shadeColor(hex, percent) {
+  // hex like #rrggbb
+  const f = parseInt(hex.slice(1),16);
+  const t = percent < 0 ? 0 : 255;
+  const p = Math.abs(percent)/100;
+  const R = Math.round((t - (f>>16)) * p) + (f>>16);
+  const G = Math.round((t - ((f>>8)&0x00FF)) * p) + ((f>>8)&0x00FF);
+  const B = Math.round((t - (f&0x0000FF)) * p) + (f&0x0000FF);
+  return "#" + (0x1000000 + (R<<16) + (G<<8) + B).toString(16).slice(1);
+}
+
+// initial styling
+stylePerson(leftPerson, leftColorInput.value, parseInt(leftStroke.value));
+stylePerson(rightPerson, rightColorInput.value, parseInt(rightStroke.value));
+
+// event listeners to update appearance live
+leftColorInput.addEventListener('input', ()=>stylePerson(leftPerson, leftColorInput.value, parseInt(leftStroke.value)));
+rightColorInput.addEventListener('input', ()=>stylePerson(rightPerson, rightColorInput.value, parseInt(rightStroke.value)));
+leftStroke.addEventListener('input', ()=>stylePerson(leftPerson, leftColorInput.value, parseInt(leftStroke.value)));
+rightStroke.addEventListener('input', ()=>stylePerson(rightPerson, rightColorInput.value, parseInt(rightStroke.value)));
+
+// Actions
+doActionBtn.addEventListener('click', ()=>{
+  const action = actionSelect.value;
+  if (action === 'kiss') doKiss();
+  else if (action === 'hug') doHug();
+  else if (action === 'marry') doMarry();
+  else if (action === 'child') haveChild();
+  else if (action === 'dance') doDance();
+  else if (action === 'reset') resetScene();
+});
+
+addBannerBtn.addEventListener('click', ()=>{
+  bannerVisible = !bannerVisible;
+  banner.style.transition = 'opacity 400ms ease, transform 400ms ease';
+  banner.style.opacity = bannerVisible ? '1' : '0';
+  banner.style.transform = bannerVisible ? 'translateY(0)' : 'translateY(-12px)';
+});
+
+addConfettiBtn.addEventListener('click', ()=>runConfetti(30));
+
+spawnLeftBtn.addEventListener('click', ()=>spawnPerson(-300, leftColorInput.value, parseInt(leftStroke.value)));
+spawnRightBtn.addEventListener('click', ()=>spawnPerson(300, rightColorInput.value, parseInt(rightStroke.value)));
+
+// basic interactions functions
+function doKiss() {
+  // move heads slightly toward each other and show heart
+  const heart = document.createElementNS('http://www.w3.org/2000/svg','use');
+  heart.setAttribute('href','#heart');
+  heart.setAttribute('transform','translate(0,-40) scale(.9)');
+  heart.classList.add('kiss-heart');
+  heart.setAttribute('opacity','0');
+  effects.appendChild(heart);
+
+  // animate positions - small rotation/translate
+  leftPerson.animate([{ transform: 'translate(-160px,0)' }, { transform: 'translate(-120px,0)' }, { transform: 'translate(-140px,0)' }], { duration: 700, easing: 'ease-out' });
+  rightPerson.animate([{ transform: 'translate(160px,0)' }, { transform: 'translate(120px,0)' }, { transform: 'translate(140px,0)' }], { duration: 700, easing: 'ease-out' });
+
+  // show heart with tiny pop
+  setTimeout(()=>{ heart.style.opacity=1; heart.classList.add('kiss-heart'); }, 240);
+  setTimeout(()=>{ if (heart.parentNode) heart.remove(); }, 1600);
+
+  // small sparkle effect
+  runSparkles(6);
+}
+
+function doHug() {
+  // arms move inwards - simulate hug by adjusting arm endpoints
+  animateArm(leftPerson.querySelector('.arm-r'), -8, -8, -18, -8, 400);
+  animateArm(rightPerson.querySelector('.arm-l'), 8, -8, 18, -8, 400);
+
+  // slight scale pop
+  leftPerson.animate([{ transform: 'translate(-160px,0) scale(1)' }, { transform: 'translate(-160px,0) scale(1.03)' }, { transform: 'translate(-160px,0) scale(1)' }], { duration: 600 });
+  rightPerson.animate([{ transform: 'translate(160px,0) scale(1)' }, { transform: 'translate(160px,0) scale(1.03)' }, { transform: 'translate(160px,0) scale(1)' }], { duration: 600 });
+
+  runConfetti(18);
+}
+
+function doMarry() {
+  // show banner, rings, confetti, and spawn one child after a moment
+  bannerVisible = true;
+  banner.style.opacity = 1;
+  banner.style.transform = 'translateY(0)';
+
+  // add ring symbol between them
+  const ring = document.createElementNS('http://www.w3.org/2000/svg','use');
+  ring.setAttribute('href','#ring-symbol'); ring.setAttribute('x',-20); ring.setAttribute('y',-120);
+  ring.setAttribute('class','confetti'); ring.setAttribute('transform','translate(0,-40) scale(.8)');
+  effects.appendChild(ring);
+  setTimeout(()=> runConfetti(30), 200);
+  // pop heart
+  const heart = document.createElementNS('http://www.w3.org/2000/svg','use');
+  heart.setAttribute('href','#heart'); heart.setAttribute('transform','translate(0,-60) scale(1.1)');
+  effects.appendChild(heart);
+  heart.classList.add('sparkle');
+  setTimeout(()=>{ if (heart.parentNode) heart.remove(); }, 1800);
+
+  // optionally spawn a child after celebration
+  setTimeout(()=> haveChild(), 1700);
+}
+
+function doDance(){
+  // simple left-right dance loop
+  leftPerson.animate([{ transform: 'translate(-160px,0) rotate(0deg)' }, { transform: 'translate(-160px,0) rotate(6deg)' }, { transform: 'translate(-160px,0) rotate(-6deg)' }, { transform: 'translate(-160px,0) rotate(0deg)'}], { duration: 900, iterations: 4 });
+  rightPerson.animate([{ transform: 'translate(160px,0) rotate(0deg)' }, { transform: 'translate(160px,0) rotate(-6deg)' }, { transform: 'translate(160px,0) rotate(6deg)' }, { transform: 'translate(160px,0) rotate(0deg)'}], { duration: 900, iterations: 4 });
+  runConfetti(14);
+}
+
+function haveChild(){
+  childCount++;
+  spawnChild();
+  runConfetti(10);
+}
+
+// helper: animate arm (line element) by changing x2,y2 endpoint target via small transform
+function animateArm(line, x1,y1,x2,y2,duration=400){
+  const orig = { x1: line.getAttribute('x1'), y1: line.getAttribute('y1'), x2: line.getAttribute('x2'), y2: line.getAttribute('y2') };
+  const start = { x1: +orig.x1, y1: +orig.y1, x2: +orig.x2, y2: +orig.y2 };
+  const end = { x1:x1, y1:y1, x2:x2, y2:y2 };
+  const steps = 18;
+  let i=0;
+  const id = setInterval(()=>{
+    i++;
+    const t = i/steps;
+    const X1 = start.x1 + (end.x1 - start.x1)*t;
+    const Y1 = start.y1 + (end.y1 - start.y1)*t;
+    const X2 = start.x2 + (end.x2 - start.x2)*t;
+    const Y2 = start.y2 + (end.y2 - start.y2)*t;
+    line.setAttribute('x1', X1); line.setAttribute('y1', Y1); line.setAttribute('x2', X2); line.setAttribute('y2', Y2);
+    if (i>=steps){ clearInterval(id); // return to original gently
+      setTimeout(()=>{ line.setAttribute('x1', orig.x1); line.setAttribute('y1', orig.y1); line.setAttribute('x2', orig.x2); line.setAttribute('y2', orig.y2); }, 700);
+    }
+  }, duration/steps);
+}
+
+// spawn a small child at center below parents
+function spawnChild(){
+  const x = (Math.random()*80 - 40);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  const s = 0.6;
+  g.setAttribute('transform', `translate(${x},0) scale(${s})`);
+  g.innerHTML = `
+    <circle cx="0" cy="-20" r="12" fill="#fff" stroke="#333" stroke-width="3" />
+    <line x1="0" y1="-4" x2="0" y2="24" stroke="#333" stroke-width="3" />
+    <line x1="-12" y1="4" x2="0" y2="4" stroke="#333" stroke-width="3" />
+    <line x1="0" y1="4" x2="12" y2="4" stroke="#333" stroke-width="3" />
+    <line x1="-8" y1="24" x2="0" y2="40" stroke="#333" stroke-width="3" />
+    <line x1="8" y1="24" x2="0" y2="40" stroke="#333" stroke-width="3" />
+  `;
+  childrenGroup.appendChild(g);
+  // little bounce
+  g.animate([{ transform: `translate(${x},20) scale(${s})` }, { transform: `translate(${x},0) scale(${s})` }], { duration: 540, easing: 'cubic-bezier(.2,.9,.2,1)' });
+}
+
+// spawn a new person to left/right at offset
+function spawnPerson(offset, color="#9ca3ff", stroke=4) {
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','person');
+  g.setAttribute('transform', `translate(${offset},0)`);
+  g.innerHTML = document.getElementById('person-template').outerHTML || document.querySelector('#person-template').outerHTML;
+  // Append to people group
+  peopleGroup.appendChild(g);
+  // find nested shapes and style
+  stylePerson(g, color, stroke);
+  // small pop animation
+  g.animate([{ transform:`translate(${offset},40) scale(.8)` }, { transform:`translate(${offset},0) scale(1)` }], { duration: 400, easing: 'cubic-bezier(.2,.9,.2,1)' });
+  return g;
+}
+
+// confetti generator
+function runConfetti(amount=20){
+  // create small colored rectangles that fall
+  const colors = ['#ff6b6b','#ffd166','#6ee7b7','#60a5fa','#c4b5fd','#f472b6'];
+  for(let i=0;i<amount;i++){
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const x = (Math.random()*420 - 210);
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', -40);
+    rect.setAttribute('width', 8);
+    rect.setAttribute('height', 14);
+    rect.setAttribute('rx', 2);
+    rect.setAttribute('fill', colors[i % colors.length]);
+    rect.setAttribute('class','confetti-piece');
+    // random delay and rotation
+    const delay = Math.random()*300;
+    rect.style.animationDelay = delay + 'ms';
+    rect.setAttribute('transform', `translate(0,0) rotate(${Math.random()*360})`);
+    effects.appendChild(rect);
+    // remove after animation
+    setTimeout(()=>{ if (rect.parentNode) rect.parentNode.removeChild(rect); }, 2000 + delay);
+  }
+}
+
+// sparkles
+function runSparkles(n=6){
+  for(let i=0;i<n;i++){
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    const x = (Math.random()*120 - 60);
+    const y = (Math.random()* -40 - 10);
+    c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 6); c.setAttribute('fill', '#ffd166');
+    c.classList.add('sparkle');
+    effects.appendChild(c);
+    setTimeout(()=>{ if (c.parentNode) c.parentNode.removeChild(c); }, 900);
+  }
+}
+
+// reset scene
+function resetScene(){
+  // clear children and effects, reset banner
+  while(childrenGroup.firstChild) childrenGroup.removeChild(childrenGroup.firstChild);
+  while(effects.firstChild) effects.removeChild(effects.firstChild);
+  bannerVisible = false;
+  banner.style.opacity = 0;
+  banner.style.transform = 'translateY(-12px)';
+  childCount = 0;
+}
+
+// small helper to style dynamic persons created from spawnPerson
+function stylePerson(node, color, stroke){
+  const head = node.querySelector('.head') || node.querySelector('circle');
+  const lines = node.querySelectorAll('line');
+  head && head.setAttribute('fill', color);
+  head && head.setAttribute('stroke', shadeColor(color, -40));
+  head && head.setAttribute('stroke-width', Math.max(1, stroke));
+  lines.forEach(l => { l.setAttribute('stroke', shadeColor(color, -20)); l.setAttribute('stroke-width', Math.max(1, stroke)); });
+}
+
+// shadecolor reuse
+function shadeColor(hex, percent) {
+  const f = parseInt(hex.slice(1),16);
+  const t = percent < 0 ? 0 : 255;
+  const p = Math.abs(percent)/100;
+  const R = Math.round((t - (f>>16)) * p) + (f>>16);
+  const G = Math.round((t - ((f>>8)&0x00FF)) * p) + ((f>>8)&0x00FF);
+  const B = Math.round((t - (f&0x0000FF)) * p) + (f&0x0000FF);
+  return "#" + (0x1000000 + (R<<16) + (G<<8) + B).toString(16).slice(1);
+}
+
+// initial set up
+banner.style.opacity = 0;
+stylePerson(leftPerson, leftColorInput.value, parseInt(leftStroke.value));
+stylePerson(rightPerson, rightColorInpu
